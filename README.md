@@ -1,35 +1,36 @@
 # OTA Registry Backend
 
-Backend สำหรับจัดการระบบ OTA model registry โดยใช้ `Express`, `Prisma` และ `Supabase Postgres`
+โปรเจคนี้คือ Backend API สำหรับจัดการ OTA model registry โดยใช้ `Node.js`, `Express`, `Prisma` และ `Supabase`
 
-โปรเจคนี้มีความสามารถหลักดังนี้:
+ความสามารถหลักของระบบ:
 
-- login แอดมินด้วย JWT
-- อัปโหลดโมเดลใหม่ผ่าน API
+- login แอดมิน
+- อัปโหลดโมเดลใหม่
 - ดึงโมเดลเวอร์ชันล่าสุด
-- เก็บ checksum แบบ `SHA-256` ของไฟล์ที่อัปโหลด
-- มี Swagger สำหรับดูและทดสอบ API
+- เก็บข้อมูลโมเดลลงฐานข้อมูล
+- คำนวณ `SHA-256` ของไฟล์โมเดล
+- มี Swagger สำหรับดูและทดลองยิง API
 
 ## สารบัญ
 
-- ภาพรวมโปรเจค
+- ภาพรวมระบบ
 - เทคโนโลยีที่ใช้
 - โครงสร้างโปรเจค
-- การเตรียมความพร้อมก่อนเริ่ม
+- วิธี setup แบบละเอียด
 - วิธีตั้งค่า Supabase
 - วิธีตั้งค่าไฟล์ `.env`
-- วิธีติดตั้งและรันโปรเจค
-- วิธีสร้างแอดมิน
-- วิธีใช้งาน API
+- วิธี migrate ฐานข้อมูล
+- วิธีสร้าง Admin สำหรับใช้งาน
+- วิธีรันโปรเจค
 - วิธีใช้งาน Swagger
-- วิธีทดสอบผ่าน Postman
-- คำแนะนำเรื่องการวางข้อมูลสำคัญใน README
+- วิธีใช้งาน API
+- วิธีทดสอบด้วย Postman
 - คำสั่งที่ใช้บ่อย
 - ปัญหาที่เจอบ่อย
 
-## ภาพรวมโปรเจค
+## ภาพรวมระบบ
 
-API หลักของระบบนี้คือ:
+API หลักในโปรเจคนี้:
 
 - `POST /api/auth/login`
 - `GET /api/models/latest`
@@ -37,9 +38,9 @@ API หลักของระบบนี้คือ:
 - `GET /health`
 - `GET /health/db`
 
-ไฟล์ที่อัปโหลดจะถูกเสิร์ฟผ่าน:
+ไฟล์โมเดลที่อัปโหลดจะถูกเปิดผ่าน URL รูปแบบนี้:
 
-- `GET /uploads/<fileName>`
+- `/uploads/<fileName>`
 
 ## เทคโนโลยีที่ใช้
 
@@ -55,56 +56,73 @@ API หลักของระบบนี้คือ:
 
 ```text
 backend/
-|- prisma/                  # schema และ migrations ของ Prisma
-|- scripts/                 # helper scripts เช่น hash password
+|- prisma/                  # schema และ migration ของ Prisma
+|- scripts/                 # helper scripts
 |- src/
 |  |- controllers/          # controller ของแต่ละ endpoint
-|  |- docs/                 # OpenAPI / Swagger spec
-|  |- lib/                  # prisma client setup
-|  |- middlewares/          # auth middleware
-|  |- routes/               # route definitions
-|  |- services/             # business logic และ db access
+|  |- docs/                 # swagger / openapi spec
+|  |- lib/                  # prisma setup
+|  |- middlewares/          # middleware เช่น auth
+|  |- routes/               # route ของระบบ
+|  |- services/             # business logic
 |  |- utils/                # helper functions
-|- uploads/                 # ไฟล์โมเดลที่อัปโหลด
+|- uploads/                 # เก็บไฟล์ที่ถูก upload
 |- .env.example
 |- .env.docker.example
-|- docker-compose.yml
 |- Dockerfile
+|- docker-compose.yml
 ```
 
-## การเตรียมความพร้อมก่อนเริ่ม
+## วิธี setup แบบละเอียด
 
-สิ่งที่ควรมีในเครื่อง:
+### 1. clone โปรเจค
 
-- Node.js เวอร์ชัน 22 ขึ้นไป
-- npm
-- โปรเจค Supabase ที่สร้างไว้แล้ว
-- Docker Desktop ถ้าต้องการรันผ่าน Docker
+```bash
+git clone <repo-url>
+cd ota-registry/backend
+```
+
+### 2. ติดตั้ง dependencies
+
+```bash
+npm install
+```
+
+### 3. สร้างไฟล์ environment
+
+คัดลอกจากไฟล์ตัวอย่าง:
+
+```bash
+cp .env.example .env
+cp .env.docker.example .env.docker
+```
+
+ถ้าอยู่บน Windows และ `cp` ใช้ไม่ได้ จะสร้างไฟล์ด้วยวิธีอื่นก็ได้ ขอแค่ให้มี `.env` และ `.env.docker` ที่มีค่าถูกต้อง
+
+### 4. ตั้งค่า Supabase
+
+ไปที่ [Supabase Dashboard](https://supabase.com/dashboard)
+
+สิ่งที่ต้องมี:
+
+- โปรเจค Supabase 1 โปรเจค
+- database password
+- project reference
+- region
+
+จากนั้นนำค่ามาใส่ใน `.env`
 
 ## วิธีตั้งค่า Supabase
 
-### 1. สร้างโปรเจคใน Supabase
+โปรเจคนี้ใช้ connection string 2 ตัว:
 
-ไปที่ [Supabase Dashboard](https://supabase.com/dashboard) แล้วสร้างโปรเจคใหม่
+- `DATABASE_URL`
+- `DIRECT_URL`
 
-สิ่งที่ต้องเตรียมจาก Supabase:
+แนวคิด:
 
-- Project Reference
-- Database Password
-- Region
-- Connection String สำหรับ pooler
-
-### 2. เตรียม connection string
-
-โปรเจคนี้ใช้ตัวแปร 2 ตัว:
-
-- `DATABASE_URL` สำหรับ runtime ของแอป
-- `DIRECT_URL` สำหรับ Prisma CLI เช่น generate, migrate, studio
-
-แนวคิดคือ:
-
-- `DATABASE_URL` ใช้ pooler และตั้ง `sslmode=no-verify`
-- `DIRECT_URL` ใช้ connection สำหรับ Prisma CLI และตั้ง `sslmode=require`
+- `DATABASE_URL` ใช้ตอนแอปรันจริง
+- `DIRECT_URL` ใช้กับ Prisma CLI เช่น generate, migrate
 
 ตัวอย่างรูปแบบ:
 
@@ -114,15 +132,6 @@ DIRECT_URL="postgresql://postgres.[PROJECT_REF]:[DB_PASSWORD]@aws-0-[REGION].poo
 ```
 
 ## วิธีตั้งค่าไฟล์ `.env`
-
-ให้คัดลอกจากไฟล์ตัวอย่าง:
-
-```bash
-cp .env.example .env
-cp .env.docker.example .env.docker
-```
-
-ถ้าใช้ PowerShell ก็ทำได้เหมือนกัน แต่ใน README นี้จะใช้ `npm` ตามที่คุณต้องการ
 
 ตัวอย่าง `.env`
 
@@ -137,38 +146,91 @@ JWT_EXPIRES="7d"
 คำอธิบาย:
 
 - `PORT` คือพอร์ตของ API
-- `DATABASE_URL` ใช้ตอนแอปรันจริง
-- `DIRECT_URL` ใช้กับ Prisma CLI
-- `JWT_SECRET` ใช้ sign token
-- `JWT_EXPIRES` คืออายุของ token
+- `DATABASE_URL` ใช้ตอน runtime ของแอป
+- `DIRECT_URL` ใช้ตอนรันคำสั่ง Prisma
+- `JWT_SECRET` ใช้สำหรับสร้าง token
+- `JWT_EXPIRES` คืออายุ token
 
-## วิธีติดตั้งและรันโปรเจค
+## วิธี migrate ฐานข้อมูล
 
-### 1. ติดตั้ง dependencies
+หลังตั้งค่า `.env` แล้ว ให้รันตามลำดับนี้:
 
-```bash
-npm install
-```
-
-### 2. สร้าง Prisma Client
+### สร้าง Prisma Client
 
 ```bash
 npm run prisma:generate
 ```
 
-### 3. ตรวจสอบสถานะ migration
+### ตรวจสถานะ migration
 
 ```bash
 npm run prisma:status
 ```
 
-### 4. apply migrations
+### apply migrations
 
 ```bash
 npm run prisma:migrate:deploy
 ```
 
-### 5. รันโปรเจค
+ถ้าสำเร็จ ตารางสำคัญจะถูกสร้าง เช่น:
+
+- `Admin`
+- `ModelRegistry`
+- `_prisma_migrations`
+
+## วิธีสร้าง Admin สำหรับใช้งาน
+
+โปรเจคนี้กำหนดให้คนที่ clone ไปใช้ **ใช้แอดมินชุดเดียวกันสำหรับทดสอบ**
+
+### Admin สำหรับใช้งาน
+
+- username: `testuser`
+- password: `password123`
+
+โปรเจคนี้ตั้งใจให้ใช้ชุดนี้เป็นหลักในการทดสอบ ถ้าเพื่อน clone โปรเจคไป ให้ใช้ username/password นี้เท่านั้น
+
+### สำคัญ
+
+ในฐานข้อมูลห้ามเก็บ `password123` แบบ plain text
+
+ต้องแปลงเป็น `bcrypt hash` ก่อน แล้วค่อยบันทึกลงตาราง `Admin`
+
+### วิธีสร้าง hash
+
+รันคำสั่งนี้:
+
+```bash
+npm run admin:hash -- password123
+```
+
+ระบบจะคืนค่า hash ออกมา เช่น:
+
+```text
+$2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+### วิธีเพิ่ม Admin ลงใน Supabase
+
+เปิด SQL Editor ของ Supabase แล้วรัน:
+
+```sql
+delete from "Admin";
+
+insert into "Admin" ("username", "password")
+values (
+  'testuser',
+  '$2b$10$PASTE_HASH_HERE'
+);
+```
+
+คำสั่งข้างบนลบ admin เก่าออกก่อน แล้วสร้างใหม่ให้เหลือแค่ `testuser`
+
+ถ้าคุณต้องการให้ทุกคนในทีมใช้ credential เดียวกัน แนะนำให้ใช้วิธีนี้
+
+## วิธีรันโปรเจค
+
+### รันแบบ local
 
 โหมดพัฒนา:
 
@@ -182,81 +244,83 @@ npm run dev
 npm run start
 ```
 
-เมื่อรันสำเร็จ API จะอยู่ที่:
+เมื่อรันสำเร็จ:
 
-- `http://localhost:3000`
+- API Base URL: `http://localhost:3000`
+- Swagger UI: `http://localhost:3000/docs`
+- Swagger JSON: `http://localhost:3000/docs.json`
 
-## วิธีรันผ่าน Docker
+### รันด้วย Docker
 
-ตรวจสอบก่อนว่าไฟล์ `.env.docker` ถูกตั้งค่าแล้ว
-
-จากนั้นรัน:
+ถ้าต้องการรันด้วย Docker:
 
 ```bash
 docker compose up --build
 ```
 
-เมื่อรันผ่าน Docker แล้ว API จะอยู่ที่:
+เมื่อรันสำเร็จ:
 
-- `http://localhost:3001`
+- API Base URL: `http://localhost:3001`
+- Swagger UI: `http://localhost:3001/docs`
+- Swagger JSON: `http://localhost:3001/docs.json`
 
-## วิธีสร้างแอดมิน
+## วิธีใช้งาน Swagger
 
-โปรเจคนี้ **ไม่เก็บ password แบบ plain text**
+Swagger ใช้สำหรับ:
 
-ในตาราง `Admin.password` ต้องเป็น `bcrypt hash` เท่านั้น
+- ดูรายการ endpoint ทั้งหมด
+- ดู request/response example
+- ทดลองยิง API จากหน้าเว็บได้ทันที
 
-### ตัวอย่างข้อมูลแอดมินสำหรับ development
+### URL
 
-แนะนำให้ใช้ตัวอย่างนี้ในทีมตอน dev:
+ตอนรัน local:
 
-- username: `testuser`
-- password: `password123`
+- `http://localhost:3000/docs`
 
-### 1. สร้าง hash ของ password
+ตอนรัน Docker:
 
-```bash
-npm run admin:hash -- password123
+- `http://localhost:3001/docs`
+
+### วิธีใช้ Swagger
+
+1. รันโปรเจคให้สำเร็จก่อน
+2. เปิดเบราว์เซอร์ไปที่ `/docs`
+3. จะเห็นรายการ endpoint ทั้งหมด
+4. กด endpoint ที่ต้องการ
+5. กด `Try it out`
+6. กรอกข้อมูลที่ต้องใช้
+7. กด `Execute`
+
+### วิธีใช้ Swagger กับ endpoint ที่ต้อง login
+
+สำหรับ `POST /api/models/upload`
+
+ให้ทำตามนี้:
+
+1. ใช้ `POST /api/auth/login` เพื่อเอา token ก่อน
+2. คัดลอก token ที่ได้
+3. ใน Swagger กดปุ่ม `Authorize`
+4. ใส่ค่าแบบนี้:
+
+```text
+Bearer YOUR_JWT_TOKEN
 ```
 
-คำสั่งนี้จะคืนค่า bcrypt hash ออกมา
-
-### 2. เพิ่มแอดมินลงใน Supabase
-
-เปิด SQL Editor ใน Supabase แล้วรัน:
-
-```sql
-insert into "Admin" ("username", "password")
-values (
-  'testuser',
-  '$2b$10$PASTE_HASH_HERE'
-);
-```
-
-ถ้ามี user อยู่แล้ว ใช้:
-
-```sql
-update "Admin"
-set password = '$2b$10$PASTE_HASH_HERE'
-where username = 'testuser';
-```
-
-### สำคัญ
-
-- ห้ามใส่ `password123` ตรง ๆ ลงในฐานข้อมูล
-- ถ้าใส่ plain text จะ login ไม่ผ่านและจะได้ `401 Invalid password`
+5. กด `Authorize`
+6. จากนั้นค่อยทดลอง `POST /api/models/upload`
 
 ## วิธีใช้งาน API
 
-Base URL ตอนรัน local:
+Base URL ตอน local:
 
 - `http://localhost:3000`
 
-### 1. Health check
+### 1. Health Check
 
 #### `GET /health`
 
-ใช้เช็กว่า API ยังรันอยู่ไหม
+ใช้ตรวจว่า API ทำงานอยู่หรือไม่
 
 ตัวอย่าง response:
 
@@ -268,7 +332,7 @@ Base URL ตอนรัน local:
 
 #### `GET /health/db`
 
-ใช้เช็กว่า API คุยกับฐานข้อมูลได้ไหม
+ใช้ตรวจว่า API เชื่อมต่อฐานข้อมูลได้หรือไม่
 
 ตัวอย่าง response:
 
@@ -279,7 +343,7 @@ Base URL ตอนรัน local:
 }
 ```
 
-### 2. Login แอดมิน
+### 2. Login
 
 #### `POST /api/auth/login`
 
@@ -287,7 +351,7 @@ Headers:
 
 - `Content-Type: application/json`
 
-Request body:
+Body:
 
 ```json
 {
@@ -296,7 +360,7 @@ Request body:
 }
 ```
 
-Response เมื่อสำเร็จ:
+Response:
 
 ```json
 {
@@ -314,15 +378,15 @@ Response เมื่อมีข้อมูล:
 {
   "id": 1,
   "version": "1.0.0",
-  "fileName": "1710000000000-my-model.tflite",
-  "fileUrl": "/uploads/1710000000000-my-model.tflite",
+  "fileName": "1710000000000-model.tflite",
+  "fileUrl": "/uploads/1710000000000-model.tflite",
   "sha256": "f6d8d4c8f2f7e6f0e7f7f4f4b6b8c6f6f6a6a9c4f3a2a1e8b5d6c7a8b9c0d1e2",
   "releaseNote": "Initial OTA model release",
   "createdAt": "2026-05-07T06:08:04.312Z"
 }
 ```
 
-ถ้ายังไม่มีข้อมูล:
+ถ้ายังไม่มีโมเดล:
 
 ```json
 {
@@ -330,7 +394,7 @@ Response เมื่อมีข้อมูล:
 }
 ```
 
-### 4. อัปโหลดโมเดลใหม่
+### 4. อัปโหลดโมเดล
 
 #### `POST /api/models/upload`
 
@@ -340,13 +404,19 @@ Headers:
 
 Body:
 
-- type: `form-data`
+- `form-data`
 
 Fields:
 
-- `model` = ไฟล์โมเดล
-- `version` = เวอร์ชัน เช่น `1.0.0`
-- `releaseNote` = ข้อความอธิบายเพิ่มเติม (optional)
+- `model` = file
+- `version` = text
+- `releaseNote` = text (optional)
+
+ตัวอย่าง:
+
+- `model`: เลือกไฟล์โมเดล
+- `version`: `1.0.0`
+- `releaseNote`: `Initial OTA model release`
 
 Response เมื่อสำเร็จ:
 
@@ -354,58 +424,15 @@ Response เมื่อสำเร็จ:
 {
   "id": 1,
   "version": "1.0.0",
-  "fileName": "1710000000000-my-model.tflite",
-  "fileUrl": "/uploads/1710000000000-my-model.tflite",
+  "fileName": "1710000000000-model.tflite",
+  "fileUrl": "/uploads/1710000000000-model.tflite",
   "sha256": "f6d8d4c8f2f7e6f0e7f7f4f4b6b8c6f6f6a6a9c4f3a2a1e8b5d6c7a8b9c0d1e2",
   "releaseNote": "Initial OTA model release",
   "createdAt": "2026-05-07T06:08:04.312Z"
 }
 ```
 
-## วิธีใช้งาน Swagger
-
-โปรเจคนี้มี Swagger UI ให้แล้ว
-
-### URL
-
-ตอนรัน local:
-
-- Swagger UI: `http://localhost:3000/docs`
-- OpenAPI JSON: `http://localhost:3000/docs.json`
-
-ตอนรัน Docker:
-
-- Swagger UI: `http://localhost:3001/docs`
-- OpenAPI JSON: `http://localhost:3001/docs.json`
-
-### วิธีใช้
-
-1. รันโปรเจคก่อน
-2. เปิดเบราว์เซอร์ไปที่ `/docs`
-3. เลือก endpoint ที่ต้องการ
-4. กด `Try it out`
-5. กรอกค่าที่ต้องใช้
-6. กด `Execute`
-
-### การใช้ Swagger กับ endpoint ที่ต้องล็อกอิน
-
-สำหรับ `POST /api/models/upload`
-
-ให้ทำตามนี้:
-
-1. เรียก `POST /api/auth/login` ก่อน
-2. คัดลอก token ที่ได้
-3. ใน Swagger กดปุ่ม `Authorize`
-4. ใส่ค่า:
-
-```text
-Bearer YOUR_JWT_TOKEN
-```
-
-5. กด Authorize
-6. จากนั้นจึงลองยิง `POST /api/models/upload`
-
-## วิธีทดสอบผ่าน Postman
+## วิธีทดสอบด้วย Postman
 
 ลำดับที่แนะนำ:
 
@@ -415,9 +442,8 @@ Bearer YOUR_JWT_TOKEN
 4. คัดลอก token
 5. `POST /api/models/upload`
 6. `GET /api/models/latest`
-7. เปิดไฟล์จาก `fileUrl`
 
-### ตัวอย่าง Postman สำหรับ login
+### ตัวอย่าง login ผ่าน Postman
 
 Method:
 
@@ -439,7 +465,7 @@ Body:
 }
 ```
 
-### ตัวอย่าง Postman สำหรับ upload
+### ตัวอย่าง upload ผ่าน Postman
 
 Method:
 
@@ -463,73 +489,6 @@ Fields:
 - `version` = text
 - `releaseNote` = text
 
-## คำแนะนำเรื่องการวางข้อมูลสำคัญใน README
-
-คำถามสำคัญคือควรแปะ `admin username/password` และ `database supabase link` ไว้ตรงไหน
-
-### 1. Admin username/password ควรแปะตรงไหน
-
-ถ้าเป็น **บัญชี dev สำหรับทีมภายใน**:
-
-- แปะไว้ในหัวข้อ `วิธีสร้างแอดมิน`
-- หรือทำหัวข้อแยกชื่อ `Development Credentials`
-
-เหมาะสำหรับ:
-
-- username ตัวอย่าง
-- password ตัวอย่าง
-- วิธีสร้าง hash
-
-แต่ถ้า repo นี้มีโอกาส public:
-
-- ไม่ควรใส่ password จริงใน README
-- ควรใส่แค่:
-  - username ตัวอย่าง
-  - password ตัวอย่างสำหรับ local/dev เท่านั้น
-  - หรือใส่ข้อความว่าให้ดูใน password manager / team vault
-
-### 2. Supabase link ควรแปะตรงไหน
-
-ควรแยกเป็น 2 แบบ:
-
-- ลิงก์ Dashboard ของโปรเจค
-- ลิงก์ API/Database connection
-
-สิ่งที่ควรใส่ใน README:
-
-- ลิงก์ Dashboard ของ Supabase สำหรับทีม
-- ชื่อโปรเจค
-- region
-- คำอธิบายว่าค่า connection string อยู่ใน `.env`
-
-ตัวอย่างหัวข้อที่แนะนำ:
-
-```text
-## Team Resources
-- Supabase Dashboard: https://supabase.com/dashboard/project/your-project-ref
-- API Docs: http://localhost:3000/docs
-```
-
-สิ่งที่ **ไม่ควร** ใส่ใน README:
-
-- `DATABASE_URL` จริงที่มี password
-- `DIRECT_URL` จริงที่มี password
-- `JWT_SECRET` จริง
-
-### สรุปแบบใช้งานง่าย
-
-ถ้าคุณอยากให้เพื่อนเห็นง่ายที่สุด แนะนำให้มีหัวข้อท้าย README แบบนี้:
-
-```text
-## Team Resources
-- Supabase Dashboard: <ลิงก์ dashboard>
-- Swagger Docs: http://localhost:3000/docs
-- Dev Admin Username: testuser
-- Dev Admin Password: password123 (ใช้เฉพาะ local/dev)
-```
-
-แบบนี้อ่านง่ายและหาเจอง่าย แต่ต้องใช้เฉพาะกรณีที่เป็น dev credential เท่านั้น
-
 ## คำสั่งที่ใช้บ่อย
 
 ติดตั้ง dependencies:
@@ -538,7 +497,7 @@ Fields:
 npm install
 ```
 
-รันโหมดพัฒนา:
+รันโหมด dev:
 
 ```bash
 npm run dev
@@ -550,7 +509,7 @@ npm run dev
 npm run start
 ```
 
-สร้าง bcrypt hash:
+สร้าง hash ของ admin password:
 
 ```bash
 npm run admin:hash -- password123
@@ -588,27 +547,27 @@ docker compose up --build
 
 ## ปัญหาที่เจอบ่อย
 
-### Login ได้ `401 Invalid password`
+### Login แล้วได้ `401 Invalid password`
 
 สาเหตุ:
 
-- password ในตาราง `Admin` เป็น plain text
+- password ในฐานข้อมูลเป็น plain text
 
 วิธีแก้:
 
-- สร้าง bcrypt hash ก่อน
-- update ค่าใน Supabase ใหม่
+- รัน `npm run admin:hash -- password123`
+- เอาค่า hash ที่ได้ไปบันทึกในตาราง `Admin`
 
 ### `GET /api/models/latest` ได้ `404`
 
 สาเหตุ:
 
-- ยังไม่มีโมเดลถูกอัปโหลด
+- ยังไม่มีการอัปโหลดโมเดล
 
 วิธีแก้:
 
 - login
-- upload model ก่อน
+- upload โมเดลก่อน
 
 ### `/health/db` ไม่ผ่าน
 
@@ -616,30 +575,32 @@ docker compose up --build
 
 - `.env` ผิด
 - Supabase URL ผิด
-- Prisma migrate ยังไม่ได้รัน
+- migration ยังไม่ได้รัน
 
 วิธีแก้:
 
-- ตรวจ `.env`
+- ตรวจค่าใน `.env`
 - รัน `npm run prisma:generate`
 - รัน `npm run prisma:migrate:deploy`
 
-## ข้อเสนอแนะเพิ่มเติม
+### Swagger เปิดไม่ได้
 
-ถ้าต้องใช้ README นี้ในทีมจริง แนะนำให้เพิ่มหัวข้อท้ายสุดอีกหัวข้อชื่อ `Team Resources` แล้วใส่:
+สาเหตุ:
 
-- Supabase Dashboard link
-- Swagger URL
-- Postman collection link
-- Dev credential สำหรับ local/dev เท่านั้น
+- แอปยังไม่รัน
+- เปิดผิดพอร์ต
 
-ตัวอย่าง:
+วิธีแก้:
 
-```text
-## Team Resources
-- Supabase Dashboard: https://supabase.com/dashboard/project/your-project-ref
-- Swagger Docs: http://localhost:3000/docs
-- Postman Collection: <ลิงก์ถ้ามี>
-- Dev Admin Username: testuser
-- Dev Admin Password: password123
-```
+- ถ้า local ใช้ `http://localhost:3000/docs`
+- ถ้า Docker ใช้ `http://localhost:3001/docs`
+
+## สรุปสำหรับเพื่อนที่ clone โปรเจคนี้ไปใช้
+
+ให้จำ 5 อย่างนี้:
+
+1. ใช้ admin ชุดเดียวคือ `testuser / password123`
+2. password ในฐานข้อมูลต้องเป็น bcrypt hash
+3. ตั้งค่า `.env` ให้ถูกก่อน
+4. รัน `npm install`
+5. รัน `npm run prisma:generate` และ `npm run prisma:migrate:deploy` ก่อน `npm run dev`
