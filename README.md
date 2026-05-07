@@ -81,7 +81,7 @@ Notes:
 ## Install dependencies
 
 ```powershell
-npm.cmd install
+npm install
 ```
 
 ## Prisma setup
@@ -89,19 +89,19 @@ npm.cmd install
 Generate Prisma client:
 
 ```powershell
-npm.cmd run prisma:generate
+npm run prisma:generate
 ```
 
 Check migration status:
 
 ```powershell
-npm.cmd run prisma:status
+npm run prisma:status
 ```
 
 Apply migrations:
 
 ```powershell
-npm.cmd run prisma:migrate:deploy
+npm run prisma:migrate:deploy
 ```
 
 ## Create admin user
@@ -116,7 +116,7 @@ Recommended local development credentials:
 Generate a bcrypt hash:
 
 ```powershell
-npm.cmd run admin:hash -- password123
+npm run admin:hash -- password123
 ```
 
 Copy the output hash and insert it into Supabase SQL Editor:
@@ -147,13 +147,13 @@ Important:
 Development mode:
 
 ```powershell
-npm.cmd run dev
+npm run dev
 ```
 
 Production-style start:
 
 ```powershell
-npm.cmd run start
+npm run start
 ```
 
 Server URLs:
@@ -283,12 +283,12 @@ Fix:
 
 ## Useful scripts
 
-- `npm.cmd run dev`
-- `npm.cmd run start`
-- `npm.cmd run admin:hash -- password123`
-- `npm.cmd run prisma:generate`
-- `npm.cmd run prisma:status`
-- `npm.cmd run prisma:migrate:deploy`
-- `npm.cmd run prisma:studio`
-- `npm.cmd run docker:up`
-- `npm.cmd run docker:down`
+- `npm run dev`
+- `npm run start`
+- `npm run admin:hash -- password123`
+- `npm run prisma:generate`
+- `npm run prisma:status`
+- `npm run prisma:migrate:deploy`
+- `npm run prisma:studio`
+- `npm run docker:up`
+- `npm run docker:down`
