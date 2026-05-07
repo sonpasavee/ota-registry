@@ -1,15 +1,24 @@
 # OTA Registry Backend
 
-โปรเจคนี้คือ Backend API สำหรับจัดการ OTA model registry โดยใช้ `Node.js`, `Express`, `Prisma` และ `Supabase`
+Backend สำหรับระบบ OTA Registry พัฒนาด้วย `Node.js`, `Express`, `Prisma` และ `Supabase Postgres`
 
-ความสามารถหลักของระบบ:
+โปรเจคนี้มีหน้าที่หลักดังนี้:
 
 - login แอดมิน
 - อัปโหลดโมเดลใหม่
-- ดึงโมเดลเวอร์ชันล่าสุด
-- เก็บข้อมูลโมเดลลงฐานข้อมูล
-- คำนวณ `SHA-256` ของไฟล์โมเดล
+- ดึงข้อมูลโมเดลล่าสุด
+- เก็บไฟล์โมเดลและ checksum
 - มี Swagger สำหรับดูและทดลองยิง API
+
+## สิ่งสำคัญก่อนเริ่ม
+
+คนที่ clone โปรเจคนี้ไปใช้ ให้ใช้ admin สำหรับทดสอบเพียงชุดเดียวคือ:
+
+- username: `testuser`
+- password: `password123`
+
+โปรเจคนี้ไม่ได้ตั้งใจให้ทุกคนเข้า Supabase Dashboard ของเจ้าของโปรเจค  
+ให้ใช้เฉพาะค่าการเชื่อมต่อฐานข้อมูลที่ถูกส่งให้สำหรับ environment ที่ใช้ร่วมกัน หรือใช้ฐานข้อมูลของตัวเองแทน
 
 ## สารบัญ
 
@@ -17,28 +26,27 @@
 - เทคโนโลยีที่ใช้
 - โครงสร้างโปรเจค
 - วิธี setup แบบละเอียด
-- วิธีตั้งค่า Supabase
-- วิธีตั้งค่าไฟล์ `.env`
-- วิธี migrate ฐานข้อมูล
-- วิธีสร้าง Admin สำหรับใช้งาน
+- การตั้งค่า environment
+- การตั้งค่าฐานข้อมูล
+- การสร้าง admin user
 - วิธีรันโปรเจค
 - วิธีใช้งาน Swagger
 - วิธีใช้งาน API
-- วิธีทดสอบด้วย Postman
+- วิธีทดสอบผ่าน Postman
 - คำสั่งที่ใช้บ่อย
 - ปัญหาที่เจอบ่อย
 
 ## ภาพรวมระบบ
 
-API หลักในโปรเจคนี้:
+API หลักในโปรเจคนี้มีดังนี้:
 
+- `GET /health`
+- `GET /health/db`
 - `POST /api/auth/login`
 - `GET /api/models/latest`
 - `POST /api/models/upload`
-- `GET /health`
-- `GET /health/db`
 
-ไฟล์โมเดลที่อัปโหลดจะถูกเปิดผ่าน URL รูปแบบนี้:
+เมื่ออัปโหลดไฟล์โมเดลแล้ว ไฟล์จะถูกเปิดได้ผ่าน path นี้:
 
 - `/uploads/<fileName>`
 
@@ -56,21 +64,21 @@ API หลักในโปรเจคนี้:
 
 ```text
 backend/
-|- prisma/                  # schema และ migration ของ Prisma
-|- scripts/                 # helper scripts
+|- prisma/
+|- scripts/
 |- src/
-|  |- controllers/          # controller ของแต่ละ endpoint
-|  |- docs/                 # swagger / openapi spec
-|  |- lib/                  # prisma setup
-|  |- middlewares/          # middleware เช่น auth
-|  |- routes/               # route ของระบบ
-|  |- services/             # business logic
-|  |- utils/                # helper functions
-|- uploads/                 # เก็บไฟล์ที่ถูก upload
+|  |- controllers/
+|  |- docs/
+|  |- lib/
+|  |- middlewares/
+|  |- routes/
+|  |- services/
+|  |- utils/
+|- uploads/
 |- .env.example
 |- .env.docker.example
-|- Dockerfile
 |- docker-compose.yml
+|- Dockerfile
 ```
 
 ## วิธี setup แบบละเอียด
@@ -88,7 +96,7 @@ cd ota-registry/backend
 npm install
 ```
 
-### 3. สร้างไฟล์ environment
+### 3. สร้างไฟล์ `.env`
 
 คัดลอกจากไฟล์ตัวอย่าง:
 
@@ -97,43 +105,14 @@ cp .env.example .env
 cp .env.docker.example .env.docker
 ```
 
-ถ้าอยู่บน Windows และ `cp` ใช้ไม่ได้ จะสร้างไฟล์ด้วยวิธีอื่นก็ได้ ขอแค่ให้มี `.env` และ `.env.docker` ที่มีค่าถูกต้อง
+ถ้าใช้ Windows และ `cp` ไม่ได้ ให้สร้างไฟล์ `.env` และ `.env.docker` ด้วยวิธีอื่นแทนได้
 
-### 4. ตั้งค่า Supabase
+### 4. ใส่ค่าการเชื่อมต่อฐานข้อมูล
 
-ไปที่ [Supabase Dashboard](https://supabase.com/dashboard)
+โปรเจคนี้ไม่ควรเขียน Supabase dashboard link หรือ secret จริงลง README  
+คนที่ clone ไปควรได้รับค่าพวกนี้จากเจ้าของโปรเจคหรือใช้ database ของตัวเอง
 
-สิ่งที่ต้องมี:
-
-- โปรเจค Supabase 1 โปรเจค
-- database password
-- project reference
-- region
-
-จากนั้นนำค่ามาใส่ใน `.env`
-
-## วิธีตั้งค่า Supabase
-
-โปรเจคนี้ใช้ connection string 2 ตัว:
-
-- `DATABASE_URL`
-- `DIRECT_URL`
-
-แนวคิด:
-
-- `DATABASE_URL` ใช้ตอนแอปรันจริง
-- `DIRECT_URL` ใช้กับ Prisma CLI เช่น generate, migrate
-
-ตัวอย่างรูปแบบ:
-
-```env
-DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[DB_PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=no-verify"
-DIRECT_URL="postgresql://postgres.[PROJECT_REF]:[DB_PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres?sslmode=require"
-```
-
-## วิธีตั้งค่าไฟล์ `.env`
-
-ตัวอย่าง `.env`
+ค่าที่ต้องใส่ใน `.env` มีดังนี้:
 
 ```env
 PORT=3000
@@ -143,76 +122,62 @@ JWT_SECRET="replace-with-a-long-random-secret"
 JWT_EXPIRES="7d"
 ```
 
-คำอธิบาย:
+ความหมายของแต่ละตัว:
 
 - `PORT` คือพอร์ตของ API
 - `DATABASE_URL` ใช้ตอน runtime ของแอป
-- `DIRECT_URL` ใช้ตอนรันคำสั่ง Prisma
-- `JWT_SECRET` ใช้สำหรับสร้าง token
-- `JWT_EXPIRES` คืออายุ token
+- `DIRECT_URL` ใช้กับ Prisma CLI
+- `JWT_SECRET` ใช้สร้าง JWT token
+- `JWT_EXPIRES` คืออายุของ token
 
-## วิธี migrate ฐานข้อมูล
+## การตั้งค่าฐานข้อมูล
 
-หลังตั้งค่า `.env` แล้ว ให้รันตามลำดับนี้:
+หลังจากตั้ง `.env` แล้ว ให้รันคำสั่งเหล่านี้ตามลำดับ
 
-### สร้าง Prisma Client
+### 1. สร้าง Prisma Client
 
 ```bash
 npm run prisma:generate
 ```
 
-### ตรวจสถานะ migration
+### 2. ตรวจ migration
 
 ```bash
 npm run prisma:status
 ```
 
-### apply migrations
+### 3. apply migration
 
 ```bash
 npm run prisma:migrate:deploy
 ```
 
-ถ้าสำเร็จ ตารางสำคัญจะถูกสร้าง เช่น:
+ถ้าสำเร็จ ตารางหลักจะถูกสร้าง เช่น:
 
 - `Admin`
 - `ModelRegistry`
 - `_prisma_migrations`
 
-## วิธีสร้าง Admin สำหรับใช้งาน
+## การสร้าง admin user
 
-โปรเจคนี้กำหนดให้คนที่ clone ไปใช้ **ใช้แอดมินชุดเดียวกันสำหรับทดสอบ**
+แม้ทุกคนจะใช้ username/password ชุดเดียวกันในการทดสอบ แต่ในฐานข้อมูลจะต้องเก็บ password เป็น `bcrypt hash` เท่านั้น
 
-### Admin สำหรับใช้งาน
+### ข้อมูลสำหรับทดสอบ
 
 - username: `testuser`
 - password: `password123`
 
-โปรเจคนี้ตั้งใจให้ใช้ชุดนี้เป็นหลักในการทดสอบ ถ้าเพื่อน clone โปรเจคไป ให้ใช้ username/password นี้เท่านั้น
-
-### สำคัญ
-
-ในฐานข้อมูลห้ามเก็บ `password123` แบบ plain text
-
-ต้องแปลงเป็น `bcrypt hash` ก่อน แล้วค่อยบันทึกลงตาราง `Admin`
-
-### วิธีสร้าง hash
-
-รันคำสั่งนี้:
+### 1. สร้าง hash
 
 ```bash
 npm run admin:hash -- password123
 ```
 
-ระบบจะคืนค่า hash ออกมา เช่น:
+ระบบจะคืนค่า hash ออกมา
 
-```text
-$2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
+### 2. บันทึกลงฐานข้อมูล
 
-### วิธีเพิ่ม Admin ลงใน Supabase
-
-เปิด SQL Editor ของ Supabase แล้วรัน:
+เปิด SQL Editor ของฐานข้อมูลที่คุณใช้งานอยู่ แล้วรัน:
 
 ```sql
 delete from "Admin";
@@ -224,21 +189,21 @@ values (
 );
 ```
 
-คำสั่งข้างบนลบ admin เก่าออกก่อน แล้วสร้างใหม่ให้เหลือแค่ `testuser`
+หมายเหตุ:
 
-ถ้าคุณต้องการให้ทุกคนในทีมใช้ credential เดียวกัน แนะนำให้ใช้วิธีนี้
+- คำสั่งนี้จะลบ admin เดิมทั้งหมด แล้วเหลือแค่ `testuser`
+- ถ้าต้องการล็อกให้ใช้แค่ user เดียว วิธีนี้เหมาะที่สุด
+- ห้ามใส่ `password123` ตรง ๆ ลงในตาราง เพราะ login จะไม่ผ่าน
 
 ## วิธีรันโปรเจค
 
 ### รันแบบ local
 
-โหมดพัฒนา:
-
 ```bash
 npm run dev
 ```
 
-โหมดปกติ:
+หรือ
 
 ```bash
 npm run start
@@ -250,9 +215,7 @@ npm run start
 - Swagger UI: `http://localhost:3000/docs`
 - Swagger JSON: `http://localhost:3000/docs.json`
 
-### รันด้วย Docker
-
-ถ้าต้องการรันด้วย Docker:
+### รันผ่าน Docker
 
 ```bash
 docker compose up --build
@@ -268,11 +231,11 @@ docker compose up --build
 
 Swagger ใช้สำหรับ:
 
-- ดูรายการ endpoint ทั้งหมด
-- ดู request/response example
-- ทดลองยิง API จากหน้าเว็บได้ทันที
+- ดู endpoint ทั้งหมด
+- ดูรูปแบบ request/response
+- ทดลองยิง API ได้จากหน้าเว็บ
 
-### URL
+### เปิด Swagger
 
 ตอนรัน local:
 
@@ -282,25 +245,21 @@ Swagger ใช้สำหรับ:
 
 - `http://localhost:3001/docs`
 
-### วิธีใช้ Swagger
+### วิธีทดลอง endpoint ทั่วไป
 
-1. รันโปรเจคให้สำเร็จก่อน
-2. เปิดเบราว์เซอร์ไปที่ `/docs`
-3. จะเห็นรายการ endpoint ทั้งหมด
-4. กด endpoint ที่ต้องการ
-5. กด `Try it out`
-6. กรอกข้อมูลที่ต้องใช้
-7. กด `Execute`
+1. เปิด `/docs`
+2. เลือก endpoint ที่ต้องการ
+3. กด `Try it out`
+4. ใส่ข้อมูล
+5. กด `Execute`
 
 ### วิธีใช้ Swagger กับ endpoint ที่ต้อง login
 
 สำหรับ `POST /api/models/upload`
 
-ให้ทำตามนี้:
-
-1. ใช้ `POST /api/auth/login` เพื่อเอา token ก่อน
+1. ยิง `POST /api/auth/login` ก่อน
 2. คัดลอก token ที่ได้
-3. ใน Swagger กดปุ่ม `Authorize`
+3. กดปุ่ม `Authorize` ใน Swagger
 4. ใส่ค่าแบบนี้:
 
 ```text
@@ -308,19 +267,17 @@ Bearer YOUR_JWT_TOKEN
 ```
 
 5. กด `Authorize`
-6. จากนั้นค่อยทดลอง `POST /api/models/upload`
+6. ทดลอง `POST /api/models/upload`
 
 ## วิธีใช้งาน API
 
-Base URL ตอน local:
+Base URL ตอนรัน local:
 
 - `http://localhost:3000`
 
-### 1. Health Check
+### 1. เช็กว่า API ทำงานอยู่หรือไม่
 
 #### `GET /health`
-
-ใช้ตรวจว่า API ทำงานอยู่หรือไม่
 
 ตัวอย่าง response:
 
@@ -330,9 +287,9 @@ Base URL ตอน local:
 }
 ```
 
-#### `GET /health/db`
+### 2. เช็กว่าเชื่อมฐานข้อมูลได้หรือไม่
 
-ใช้ตรวจว่า API เชื่อมต่อฐานข้อมูลได้หรือไม่
+#### `GET /health/db`
 
 ตัวอย่าง response:
 
@@ -343,7 +300,7 @@ Base URL ตอน local:
 }
 ```
 
-### 2. Login
+### 3. login
 
 #### `POST /api/auth/login`
 
@@ -368,7 +325,7 @@ Response:
 }
 ```
 
-### 3. ดึงโมเดลล่าสุด
+### 4. ดึงโมเดลล่าสุด
 
 #### `GET /api/models/latest`
 
@@ -386,7 +343,7 @@ Response เมื่อมีข้อมูล:
 }
 ```
 
-ถ้ายังไม่มีโมเดล:
+Response เมื่อยังไม่มีโมเดล:
 
 ```json
 {
@@ -394,7 +351,7 @@ Response เมื่อมีข้อมูล:
 }
 ```
 
-### 4. อัปโหลดโมเดล
+### 5. อัปโหลดโมเดลใหม่
 
 #### `POST /api/models/upload`
 
@@ -414,11 +371,11 @@ Fields:
 
 ตัวอย่าง:
 
-- `model`: เลือกไฟล์โมเดล
+- `model`: ไฟล์โมเดล
 - `version`: `1.0.0`
 - `releaseNote`: `Initial OTA model release`
 
-Response เมื่อสำเร็จ:
+Response:
 
 ```json
 {
@@ -432,7 +389,7 @@ Response เมื่อสำเร็จ:
 }
 ```
 
-## วิธีทดสอบด้วย Postman
+## วิธีทดสอบผ่าน Postman
 
 ลำดับที่แนะนำ:
 
@@ -497,7 +454,7 @@ Fields:
 npm install
 ```
 
-รันโหมด dev:
+รันโหมดพัฒนา:
 
 ```bash
 npm run dev
@@ -509,7 +466,7 @@ npm run dev
 npm run start
 ```
 
-สร้าง hash ของ admin password:
+สร้าง hash ของ password:
 
 ```bash
 npm run admin:hash -- password123
@@ -521,13 +478,13 @@ npm run admin:hash -- password123
 npm run prisma:generate
 ```
 
-เช็ก migration status:
+เช็ก migration:
 
 ```bash
 npm run prisma:status
 ```
 
-apply migrations:
+apply migration:
 
 ```bash
 npm run prisma:migrate:deploy
@@ -547,39 +504,38 @@ docker compose up --build
 
 ## ปัญหาที่เจอบ่อย
 
-### Login แล้วได้ `401 Invalid password`
+### ได้ `401 Invalid password`
 
 สาเหตุ:
 
-- password ในฐานข้อมูลเป็น plain text
+- password ในตาราง `Admin` ไม่ใช่ bcrypt hash
 
 วิธีแก้:
 
 - รัน `npm run admin:hash -- password123`
-- เอาค่า hash ที่ได้ไปบันทึกในตาราง `Admin`
+- เอาค่า hash ที่ได้ไปใส่ในฐานข้อมูล
 
 ### `GET /api/models/latest` ได้ `404`
 
 สาเหตุ:
 
-- ยังไม่มีการอัปโหลดโมเดล
+- ยังไม่มีโมเดลในระบบ
 
 วิธีแก้:
 
-- login
-- upload โมเดลก่อน
+- login แล้ว upload โมเดลก่อน
 
 ### `/health/db` ไม่ผ่าน
 
 สาเหตุที่เป็นไปได้:
 
-- `.env` ผิด
-- Supabase URL ผิด
-- migration ยังไม่ได้รัน
+- `.env` ไม่ถูก
+- connection string ผิด
+- ยังไม่ได้ migrate
 
 วิธีแก้:
 
-- ตรวจค่าใน `.env`
+- ตรวจ `.env`
 - รัน `npm run prisma:generate`
 - รัน `npm run prisma:migrate:deploy`
 
@@ -592,15 +548,24 @@ docker compose up --build
 
 วิธีแก้:
 
-- ถ้า local ใช้ `http://localhost:3000/docs`
-- ถ้า Docker ใช้ `http://localhost:3001/docs`
+- local ใช้ `http://localhost:3000/docs`
+- Docker ใช้ `http://localhost:3001/docs`
 
-## สรุปสำหรับเพื่อนที่ clone โปรเจคนี้ไปใช้
+## สรุปสั้นสำหรับคนที่ clone โปรเจคนี้
 
-ให้จำ 5 อย่างนี้:
+ทำตามนี้:
 
-1. ใช้ admin ชุดเดียวคือ `testuser / password123`
-2. password ในฐานข้อมูลต้องเป็น bcrypt hash
-3. ตั้งค่า `.env` ให้ถูกก่อน
-4. รัน `npm install`
-5. รัน `npm run prisma:generate` และ `npm run prisma:migrate:deploy` ก่อน `npm run dev`
+1. `npm install`
+2. สร้าง `.env`
+3. ใส่ค่า database connection ของ environment ที่จะใช้
+4. `npm run prisma:generate`
+5. `npm run prisma:migrate:deploy`
+6. `npm run admin:hash -- password123`
+7. insert admin เป็น `testuser`
+8. `npm run dev`
+9. เปิด `http://localhost:3000/docs`
+
+และให้ใช้ admin สำหรับทดสอบแค่ชุดเดียว:
+
+- username: `testuser`
+- password: `password123`
